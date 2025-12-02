@@ -2,14 +2,14 @@ import logging
 from typing import Any
 
 import aiohttp
-from fastapi import APIRouter, Depends, status
 from discord import Webhook
+from fastapi import APIRouter, Depends, status
 
 from app.core.config import get_config
 from app.deps import verify_bearer
 from app.helpers.ban import get_ban_embed
-
 from app.schemas.v1.ban import NewBan
+
 
 logger = logging.getLogger(__name__)
 
