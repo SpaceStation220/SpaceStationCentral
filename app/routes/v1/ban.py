@@ -8,6 +8,7 @@ from discord import Webhook
 from app.core.config import get_config
 from app.deps import verify_bearer
 from app.helpers.ban import get_ban_embed
+
 from app.schemas.v1.ban import NewBan
 
 logger = logging.getLogger(__name__)

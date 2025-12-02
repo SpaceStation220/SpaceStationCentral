@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from discord import Color, Embed
 
 from app.core.utils import utcnow2
+
 from app.schemas.v1.ban import NewBan
 
 def determine_ban_type(ban: NewBan) -> str:
