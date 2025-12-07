@@ -113,13 +113,3 @@ class DiscordWebhookHandler(logging.Handler):
         for chunk in chunks:
             content = f"```\n{chunk}\n```"
             asyncio.run(webhook.send(content=content[: self.MAX_CONTENT_LENGTH]))
-
-class PublicDiscordWebhookHandler(DiscordWebhookHandler):
-    @classmethod
-    @override
-    def from_config(cls) -> Self:
-        config = get_config()
-        webhook_url = config.general.discord_public_webhook
-        if not webhook_url:
-            raise ValueError("Public Discord webhook URL not configured")
-        return cls(webhook_url=webhook_url)
