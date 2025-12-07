@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import UTC, datetime
-from typing import Any, dict, ClassVar, Self, override
+from typing import ClassVar, Self, override
 
 from discord import Color, Embed, Webhook
 
@@ -61,8 +61,8 @@ class DiscordWebhookHandler(logging.Handler):
             f"- {record.process}:{record.processName} "
             f"- {record.funcName}:{record.lineno}"
         )
-
-    def discord_handler_factory(**_kwargs: dict[str, Any]) -> logging.Handler:
+    
+    def discord_handler_factory(**kwargs) -> logging.Handler:
         """
         Factory function for creating DiscordWebhookHandler from config.
 
@@ -71,6 +71,7 @@ class DiscordWebhookHandler(logging.Handler):
         try:
             return DiscordWebhookHandler.from_config()
         except ValueError:
+            # Return a NullHandler if webhook is not configured
             return logging.NullHandler()
 
     @override
