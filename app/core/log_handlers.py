@@ -1,12 +1,11 @@
 import asyncio
 import logging
 from datetime import UTC, datetime
-from typing import ClassVar, Any, Self, override
+from typing import ClassVar, Self, override
 
 from discord import Color, Embed, Webhook
 
 from app.core.config import get_config
-
 
 class DiscordWebhookHandler(logging.Handler):
     """
