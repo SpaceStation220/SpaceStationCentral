@@ -50,10 +50,15 @@ handlers:
         "()": app.core.log_handlers.DiscordWebhookHandler.from_config
         level: INFO
         formatter: discord
+        
+    public_discord_handler:
+        "()": app.core.log_handlers.PublicDiscordWebhookHandler.from_config
+        level: INFO
+        formatter: discord
 
 root:
     level: NOTSET
-    handlers: [console, debug_handler, error_handler, discord_handler]
+    handlers: [console, debug_handler, error_handler, discord_handler, public_discord_handler]
     propagate: false
 
 loggers:
