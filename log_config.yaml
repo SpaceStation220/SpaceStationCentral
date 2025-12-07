@@ -47,10 +47,10 @@ handlers:
         encoding: utf8
 
     discord_handler:
-        class: app.core.log_handlers.DiscordWebhookHandler
+        "()": app.core.log_handlers.discord_handler_factory
         level: INFO
         formatter: discord
-
+        
 root:
     level: NOTSET
     handlers: [console, debug_handler, error_handler, discord_handler]
