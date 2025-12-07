@@ -116,7 +116,6 @@ class DiscordWebhookHandler(logging.Handler):
 
 class PublicDiscordWebhookHandler(DiscordWebhookHandler):
     @classmethod
-    @override
     def from_config(cls) -> Self:
         config = get_config()
         webhook_url = config.general.discord_public_webhook
