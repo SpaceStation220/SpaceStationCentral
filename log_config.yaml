@@ -47,7 +47,7 @@ handlers:
         encoding: utf8
 
     discord_handler:
-        class: app.core.log_handlers.DiscordWebhookHandler
+        "()": app.core.log_handlers.DiscordWebhookHandler.from_config
         level: INFO
         formatter: discord
         
