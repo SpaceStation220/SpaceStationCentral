@@ -1,37 +1,24 @@
-import asyncio
 import logging
+import threading
 from datetime import UTC, datetime
-from typing import ClassVar, Self, override
+from typing import ClassVar, Self, TypedDict, override
 
-from discord import Color, Embed, Webhook
+from discord import Color, Embed, SyncWebhook
 
 from app.core.config import get_config
 
 
-def discord_handler_factory() -> logging.Handler:
-    """
-    Factory function for creating DiscordWebhookHandler from config.
+class DiscordPayload(TypedDict):
+    """Type definition for the data passed to the worker thread."""
 
-    Returns NullHandler if webhook_url is not configured.
-    """
-    try:
-        return DiscordWebhookHandler.from_config()
-    except ValueError:
-        # Return a NullHandler if webhook is not configured
-        return logging.NullHandler()
+    embed: Embed | None
+    content_lines: list[str] | None
 
 
 class DiscordWebhookHandler(logging.Handler):
-    """
-    A synchronous logging handler that sends logs to a Discord webhook.
-
-    This is a simpler version that uses blocking HTTP requests.
-    For production use, consider using AsyncDiscordWebhookHandler instead.
-    """
-
-    MAX_EMBED_DESCRIPTION: ClassVar[int] = 4096  # Discord's maximum embed description length
-    MAX_CONTENT_LENGTH: ClassVar[int] = 2000  # Discord's maximum message content length
-    DECORATORS_LEN: ClassVar[int] = 8  # Characters taken by ` and \n
+    MAX_EMBED_DESCRIPTION: ClassVar[int] = 4096
+    MAX_CONTENT_LENGTH: ClassVar[int] = 2000
+    DECORATORS_LEN: ClassVar[int] = 8
 
     COLOR_MAP: ClassVar[dict[int, Color]] = {
         logging.NOTSET: Color.default(),
@@ -43,98 +30,95 @@ class DiscordWebhookHandler(logging.Handler):
     }
 
     def __init__(self, webhook_url: str) -> None:
-        """
-        Initialize the Discord webhook handler.
-
-        Args:
-            webhook_url: The Discord webhook URL to send logs to
-        """
         super().__init__()
         self.webhook_url: str = webhook_url
 
     @classmethod
     def from_config(cls) -> Self:
-        """
-        Create a handler instance from application configuration.
-
-        Returns:
-            Configured handler instance
-        """
         config = get_config()
         webhook_url = config.general.discord_webhook
         if not webhook_url:
             raise ValueError("Discord webhook URL not configured")
         return cls(webhook_url=webhook_url)
 
-    def format_footer(self, record: logging.LogRecord) -> str:
-        """Formats the timestamp from the log record for the embed footer."""
-        dt = datetime.fromtimestamp(record.created, UTC)
-        return (
-            f"{dt.strftime('%Y-%m-%d %H:%M:%S UTC')} "
-            f"- {record.process}:{record.processName} "
-            f"- {record.funcName}:{record.lineno}"
-        )
-
-    def discord_handler_factory(self) -> logging.Handler:
-        """
-        Factory function for creating DiscordWebhookHandler from config.
-
-        Returns NullHandler if webhook_url is not configured.
-        """
-        try:
-            return DiscordWebhookHandler.from_config()
-        except ValueError:
-            # Return a NullHandler if webhook is not configured
-            return logging.NullHandler()
-
     @override
     def emit(self, record: logging.LogRecord) -> None:
-        """Send the log record to the Discord webhook as an embed or plain text if too large."""
+        """
+        Main Thread: Captures context and formats message.
+
+        Then spawns a thread for network I/O.
+        """
         try:
+            # 1. Format immediately to capture ContextVars and Tracebacks
             formatted_message = self.format(record)
 
-            if len(formatted_message) > self.MAX_EMBED_DESCRIPTION:
-                self._send_as_content(record, formatted_message)
-            else:
-                self._send_as_embed(record, formatted_message)
+            # 2. Capture metadata immediately
+            footer_text = self._format_footer(record)
 
+            # 3. Prepare payload
+            payload: DiscordPayload = {"embed": None, "content_lines": None}
+
+            if len(formatted_message) > self.MAX_EMBED_DESCRIPTION:
+                payload["content_lines"] = self._prepare_content_chunks(record, formatted_message, footer_text)
+            else:
+                payload["embed"] = self._prepare_embed(record, formatted_message, footer_text)
+
+            # 4. Offload to thread
+            # We pass 'record' so the worker can call handleError if the network fails
+            t = threading.Thread(
+                target=self._worker_send,
+                kwargs={"payload": payload, "record": record},
+                daemon=True,
+            )
+            t.start()
         except Exception:
             self.handleError(record)
 
-    def _send_as_embed(self, record: logging.LogRecord, formatted_message: str) -> None:
-        """Send log record as a rich embed."""
-        embed = Embed(title=record.name, description=formatted_message, color=self.COLOR_MAP.get(record.levelno))
-        embed.set_footer(text=self.format_footer(record))
+    def _worker_send(self, payload: DiscordPayload, record: logging.LogRecord) -> None:
+        """Background Thread: Performs blocking network I/O."""
+        try:
+            webhook = SyncWebhook.from_url(self.webhook_url)
 
-        webhook = Webhook.from_url(self.webhook_url)
-        asyncio.run(webhook.send(embed=embed))
+            if payload["embed"] is not None:
+                webhook.send(embed=payload["embed"])
 
-    def _send_as_content(self, record: logging.LogRecord, formatted_message: str) -> None:
-        """Send long log record as split plain text messages."""
-        webhook = Webhook.from_url(self.webhook_url)
+            if payload["content_lines"] is not None:
+                for line in payload["content_lines"]:
+                    webhook.send(content=line)
 
-        base_content = f"[{record.levelname}] {self.format_footer(record)} - {record.name}:\n"
-        asyncio.run(webhook.send(content=base_content))
+        except Exception:
+            # Call handleError so the logger system knows something went wrong
+            self.handleError(record)
 
-        available_length = self.MAX_CONTENT_LENGTH - self.DECORATORS_LEN
-        lines = formatted_message.splitlines()
-        chunk = ""
-        chunks: list[str] = []
+    def _format_footer(self, record: logging.LogRecord) -> str:
+        dt = datetime.fromtimestamp(record.created, UTC)
+        return f"{dt.strftime('%Y-%m-%d %H:%M:%S UTC')} - {record.processName} - {record.funcName}:{record.lineno}"
+
+    def _prepare_embed(self, record: logging.LogRecord, msg: str, footer: str) -> Embed:
+        embed = Embed(title=record.name, description=msg, color=self.COLOR_MAP.get(record.levelno))
+        embed.set_footer(text=footer)
+        return embed
+
+    def _prepare_content_chunks(self, record: logging.LogRecord, msg: str, footer: str) -> list[str]:
+        # Header
+        base_content = f"[{record.levelname}] {footer} - {record.name}:\n"
+        chunks = [base_content]
+
+        # Body Splitting
+        available = self.MAX_CONTENT_LENGTH - self.DECORATORS_LEN
+        lines = msg.splitlines()
+        current = ""
 
         for line in lines:
-            # Check if adding this line would exceed the available length
-            if len(chunk) + len(line) + 1 > available_length:  # +1 for newline
-                chunks.append(chunk)
-                chunk = line
+            if len(current) + len(line) + 1 > available:
+                chunks.append(f"```\n{current}\n```")
+                current = line
             else:
-                if chunk:
-                    chunk += "\n"
-                chunk += line
+                if current:
+                    current += "\n"
+                current += line
 
-        # Append the last chunk if it exists
-        if chunk:
-            chunks.append(chunk)
+        if current:
+            chunks.append(f"```\n{current}\n```")
 
-        for chunk in chunks:
-            content = f"```\n{chunk}\n```"
-            asyncio.run(webhook.send(content=content[: self.MAX_CONTENT_LENGTH]))
+        return chunks

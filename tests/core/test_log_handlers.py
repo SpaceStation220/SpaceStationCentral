@@ -25,7 +25,7 @@ def log_record() -> LogRecord:
 class TestDiscordWebhookHandler:
     def test_emit(self, mocker: MockerFixture, log_record: LogRecord) -> None:
         webhook_mock = Mock()
-        webhook_from_url_mock = mocker.patch("app.core.log_handlers.Webhook.from_url", return_value=webhook_mock)
+        webhook_from_url_mock = mocker.patch("app.core.log_handlers.SyncWebhook.from_url", return_value=webhook_mock)
 
         handler = DiscordWebhookHandler(webhook_url="https://discord.com/api/webhooks/test")
         handler.emit(log_record)
@@ -43,7 +43,7 @@ class TestDiscordWebhookHandler:
 
     def test_emit_with_error(self, mocker: MockerFixture, log_record: LogRecord) -> None:
         webhook_mock = Mock()
-        mocker.patch("app.core.log_handlers.Webhook.from_url", return_value=webhook_mock)
+        mocker.patch("app.core.log_handlers.SyncWebhook.from_url", return_value=webhook_mock)
         webhook_mock.send.side_effect = Exception("Network error")
 
         handler = DiscordWebhookHandler(webhook_url="https://discord.com/api/webhooks/test")

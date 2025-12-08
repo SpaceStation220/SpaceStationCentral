@@ -101,7 +101,7 @@ class GeneralConfig(ConfigSection):
             file_secret_settings,
         )
 
-    @field_validator("discord_webhook", "discord_public_webhook")
+    @field_validator("discord_webhook")
     @classmethod
     def validate_webhook(cls, value: str) -> str:
         if value and not value.startswith(("http://", "https://")):

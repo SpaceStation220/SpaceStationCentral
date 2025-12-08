@@ -22,7 +22,6 @@ jobs:
         with:
           pyproject-file: "pyproject.toml"
           enable-cache: true
-          python-version: "3.12"
 
       - name: Lint the code
         run: uv run hatch run lint
@@ -38,7 +37,6 @@ jobs:
         with:
           pyproject-file: "pyproject.toml"
           enable-cache: true
-          python-version: "3.12"
 
       - name: Run tests
         run: uv run hatch run test

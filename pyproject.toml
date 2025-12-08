@@ -3,7 +3,7 @@ name = "SpaceStationCentral"
 version = "0.1.0"
 description = "SS220 API for game servers and infrastructure"
 readme = "README.md"
-requires-python = ">=3.10,<3.14"
+requires-python = "==3.13.*"
 dependencies = [
     "aiocache>=0.12.3",
     "aiohttp>=3.10.11",
@@ -15,6 +15,7 @@ dependencies = [
     "pydantic>=2.8.2,<3.0.0",
     "pydantic-settings>=2.8.1",
     "redis>=5.2.1",
+    "requests>=2.32.5",
     "sqlalchemy>=2.0.33,<3.0.0",
     "sqlmodel>=0.0.24",
 ]
@@ -156,7 +157,7 @@ convention = "google"
 
 [tool.basedpyright]
 typeCheckingMode = "recommended"
-pythonVersion = "3.12"
+pythonVersion = "3.13"
 venvPath = ".venv"
 include = ["app", "tests"]
 exclude = [
