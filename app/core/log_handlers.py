@@ -8,6 +8,19 @@ from discord import Color, Embed, Webhook
 from app.core.config import get_config
 
 
+def discord_handler_factory() -> logging.Handler:
+    """
+    Factory function for creating DiscordWebhookHandler from config.
+
+    Returns NullHandler if webhook_url is not configured.
+    """
+    try:
+        return DiscordWebhookHandler.from_config()
+    except ValueError:
+        # Return a NullHandler if webhook is not configured
+        return logging.NullHandler()
+
+
 class DiscordWebhookHandler(logging.Handler):
     """
     A synchronous logging handler that sends logs to a Discord webhook.
