@@ -9,8 +9,11 @@ def determine_ban_type(ban: NewBan) -> str:
     """Determine the effective bantype based on ban info."""
     if ban.bantype:
         return ban.bantype
+
+    # fallback safety mode
     if ban.job:
         return "JOB_PERMABAN" if ban.duration_hours is None else "JOB_TEMPBAN"
+
     return "PERMABAN" if ban.duration_hours is None else "TEMPBAN"
 
 def get_ban_color_name(bantype: str) -> tuple[Color, str]:
@@ -35,14 +38,15 @@ def build_description_parts(ban: NewBan, bantype: str, expiration_time: datetime
     ]
 
     # duration
-    expiration_str: str
-    if ban.duration_hours is not None and ban.duration_hours > 0:
+    if bantype in ("PERMABAN", "JOB_PERMABAN"):
+        parts.append("**Длительность:** Навсегда")
+    elif ban.duration_hours is not None and ban.duration_hours > 0:
         expiration_str = (
-            expiration_time.strftime("%Y-%m-%d %H:%M:%S") if expiration_time else "unknown"
+            expiration_time.strftime("%Y-%m-%d %H:%M:%S")
+            if expiration_time else "unknown"
         )
         parts.append(f"**Длительность:** {ban.duration_hours} ч. до {expiration_str}")
     else:
-        expiration_str = "unknown"
         parts.append("**Длительность:** Навсегда")
 
     # reason
