@@ -71,7 +71,7 @@ def upgrade() -> None:
             {"cause": "banda@ss220", "benefit_tier": 5, "active": True},
             {"cause": "lead_moderator@discord", "benefit_tier": 5, "active": True},
             {"cause": "lead_administrator@prime", "benefit_tier": 5, "active": True},
-            {"cause": "lead_administrator@prardise", "benefit_tier": 5, "active": True},
+            {"cause": "lead_administrator@paradise", "benefit_tier": 5, "active": True},
             {"cause": "lead_administrator@ss14", "benefit_tier": 5, "active": True},
             {"cause": "lead_administrator@bandastation", "benefit_tier": 5, "active": True},
             {"cause": "lead_administrator@bandamarines", "benefit_tier": 5, "active": True},
