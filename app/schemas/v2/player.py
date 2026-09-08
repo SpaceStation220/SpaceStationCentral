@@ -1,4 +1,4 @@
-from app.database.models import Donation, PlayerBase, Whitelist, WhitelistBan
+from app.database.models import BenefitGrant, PlayerBase, Whitelist, WhitelistBan
 
 
 # region Get
@@ -9,7 +9,7 @@ class PlayerNested(PlayerBase):
     whitelist_bans: list[WhitelistBan]
     whitelist_bans_issued: list[WhitelistBan]
 
-    donations: list[Donation]
+    donations: list[BenefitGrant]
 
 
 # endregion

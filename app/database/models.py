@@ -4,6 +4,7 @@ from secrets import token_urlsafe
 from typing import Unpack
 
 from pydantic import ConfigDict
+from sqlalchemy import CheckConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.utils import utcnow2
@@ -54,7 +55,7 @@ class Player(PlayerBase, table=True):
         back_populates="admin", sa_relationship_kwargs={"foreign_keys": "WhitelistBan.admin_id"}
     )
 
-    donations: list["Donation"] = Relationship(back_populates="player")
+    donations: list["BenefitGrant"] = Relationship(back_populates="player")
 
 
 class CkeyLinkToken(BaseSqlModel, table=True):
@@ -111,10 +112,24 @@ class ApiAuth(BaseSqlModel, table=True):
     token_hash: str = Field(max_length=64, unique=True, index=True)
 
 
-class DonationBase(BaseSqlModel):
+class BenefitsScope(BaseSqlModel, table=True):
+    name: str = Field(max_length=255, primary_key=True)
+    active: bool = Field(default=True, index=True)
+
+
+class BenefitPolicy(BaseSqlModel, table=True):
+    cause: str = Field(max_length=255, primary_key=True)
+    scope: str = Field(max_length=255, primary_key=True, default="*", foreign_key="benefits_scope.name")
+    benefit_tier: int = Field()
+    active: bool = Field(default=True)
+
+
+class BenefitGrantBase(BaseSqlModel):
     id: int | None = Field(default=None, primary_key=True)
     player_id: int = Field(foreign_key="player.id", index=True)
     tier: int = Field()
+    cause: str | None = Field(default=None, max_length=255)
+    scope: str = Field(max_length=255, foreign_key="benefits_scope.name")
     issue_time: datetime = Field(default_factory=datetime.now)
     expiration_time: datetime = Field(
         default_factory=lambda: utcnow2() + DEFAULT_DONATION_EXPIRATION_TIME,
@@ -122,5 +137,9 @@ class DonationBase(BaseSqlModel):
     valid: bool = Field(default=True)
 
 
-class Donation(DonationBase, table=True):
+class BenefitGrant(BenefitGrantBase, table=True):
+    __table_args__ = (
+        CheckConstraint("scope <> '*'", name="ck_benefit_grant_scope_not_default"),
+    )
+
     player: Player = Relationship(back_populates="donations")
