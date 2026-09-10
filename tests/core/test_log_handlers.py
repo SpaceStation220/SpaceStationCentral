@@ -1,5 +1,6 @@
 import logging
 from logging import LogRecord
+from threading import Event
 from unittest.mock import Mock
 
 import pytest
@@ -25,11 +26,18 @@ def log_record() -> LogRecord:
 class TestDiscordWebhookHandler:
     def test_emit(self, mocker: MockerFixture, log_record: LogRecord) -> None:
         webhook_mock = Mock()
+        send_done = Event()
+
+        def send_success(**_: object) -> None:
+            send_done.set()
+
+        webhook_mock.send.side_effect = send_success
         webhook_from_url_mock = mocker.patch("app.core.log_handlers.SyncWebhook.from_url", return_value=webhook_mock)
 
         handler = DiscordWebhookHandler(webhook_url="https://discord.com/api/webhooks/test")
         handler.emit(log_record)
 
+        assert send_done.wait(1)
         webhook_from_url_mock.assert_called_once_with("https://discord.com/api/webhooks/test")
         webhook_mock.send.assert_called_once()
 
@@ -43,15 +51,28 @@ class TestDiscordWebhookHandler:
 
     def test_emit_with_error(self, mocker: MockerFixture, log_record: LogRecord) -> None:
         webhook_mock = Mock()
+        send_done = Event()
+
+        def send_with_error(**_: object) -> None:
+            send_done.set()
+            raise Exception("Network error")
+
+        webhook_mock.send.side_effect = send_with_error
         mocker.patch("app.core.log_handlers.SyncWebhook.from_url", return_value=webhook_mock)
-        webhook_mock.send.side_effect = Exception("Network error")
 
         handler = DiscordWebhookHandler(webhook_url="https://discord.com/api/webhooks/test")
 
-        handle_error_mock = mocker.patch.object(handler, "handleError")
+        handle_error_done = Event()
+
+        def handle_error(_: object) -> None:
+            handle_error_done.set()
+
+        handle_error_mock = mocker.patch.object(handler, "handleError", side_effect=handle_error)
 
         handler.emit(log_record)
 
+        assert send_done.wait(1)
+        assert handle_error_done.wait(1)
         webhook_mock.send.assert_called_once()
         handle_error_mock.assert_called_once_with(log_record)
 

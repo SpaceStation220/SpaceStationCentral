@@ -1,8 +1,8 @@
-from app.database.models import DonationBase, Player
+from app.database.models import BenefitGrantBase, Player
 
 
 # region Get
-class DonationNested(DonationBase):
+class DonationNested(BenefitGrantBase):
     player: Player
 
 
